@@ -1,55 +1,33 @@
 <?php
-// === Pour afficher les erreurs (utile pendant le test) ===
-error_reporting(E_ALL);
-ini_set("display_errors", 1);
+require "config.php";
 
-// === Vérifier si le formulaire a été envoyé ===
-if ($_SERVER["REQUEST_METHOD"] === "POST") {
+header("Content-Type: application/json");
 
-    $id = $_POST["studentID"] ?? "";
-    $lastname = $_POST["lastname"] ?? "";
-    $firstname = $_POST["firstname"] ?? "";
-    $email = $_POST["email"] ?? "";
+// Vérifier si les champs existent
+if (!isset($_POST["studentID"]) || !isset($_POST["lastname"]) ||
+    !isset($_POST["firstname"]) || !isset($_POST["email"])) {
 
-    // === Vérification minimale ===
-    if (empty($id) || empty($lastname) || empty($firstname) || empty($email)) {
-        echo json_encode(["status" => "error", "message" => "Missing fields"]);
-        exit;
-    }
-
-    // === Charger le fichier JSON ===
-    $file = "students.json";
-
-    if (!file_exists($file)) {
-        file_put_contents($file, "[]");
-    }
-
-    $data = json_decode(file_get_contents($file), true);
-
-    if (!is_array($data)) {
-        $data = [];
-    }
-
-    // Vérifier si l’étudiant existe déjà
-    foreach ($data as $student) {
-        if ($student["id"] == $id) {
-            echo json_encode(["status" => "error", "message" => "Student already exists"]);
-            exit;
-        }
-    }
-
-    // === Ajouter le nouvel étudiant ===
-    $data[] = [
-        "id" => $id,
-        "lastname" => $lastname,
-        "firstname" => $firstname,
-        "email" => $email
-    ];
-
-    // === Sauvegarder dans students.json ===
-    file_put_contents($file, json_encode($data, JSON_PRETTY_PRINT));
-
-    echo json_encode(["status" => "success"]);
+    echo json_encode(["status" => "error", "message" => "Missing fields"]);
     exit;
 }
+
+$studentID = $_POST["studentID"];
+$lastname  = $_POST["lastname"];
+$firstname = $_POST["firstname"];
+$email     = $_POST["email"];
+
+$sql = "INSERT INTO students (studentID, lastname, firstname, email)
+        VALUES (?, ?, ?, ?)";
+
+$stmt = $conn->prepare($sql);
+$stmt->bind_param("isss", $studentID, $lastname, $firstname, $email);
+
+if ($stmt->execute()) {
+    echo json_encode(["status" => "success"]);
+} else {
+    echo json_encode(["status" => "error", "message" => $conn->error]);
+}
+
+$stmt->close();
+$conn->close();
 ?>
